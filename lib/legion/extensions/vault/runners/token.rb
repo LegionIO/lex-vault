@@ -53,24 +53,24 @@ module Legion
             { result: response.body }
           end
 
-          def list_roles(**)
+          def list_token_roles(**)
             response = connection(**).get('/v1/auth/token/roles', { list: true })
             { result: response.body }
           end
 
-          def get_role(role_name:, **)
+          def get_token_role(role_name:, **)
             response = connection(**).get("/v1/auth/token/roles/#{role_name}")
             { result: response.body }
           end
 
-          def create_role(role_name:, allowed_policies: nil, orphan: nil, renewable: nil, token_ttl: nil, **)
+          def create_token_role(role_name:, allowed_policies: nil, orphan: nil, renewable: nil, token_ttl: nil, **)
             body = { allowed_policies: allowed_policies, orphan: orphan, renewable: renewable,
                      token_ttl: token_ttl }.compact
             response = connection(**).post("/v1/auth/token/roles/#{role_name}", body)
             { result: response.status == 204 }
           end
 
-          def delete_role(role_name:, **)
+          def delete_token_role(role_name:, **)
             response = connection(**).delete("/v1/auth/token/roles/#{role_name}")
             { result: response.status == 204 }
           end

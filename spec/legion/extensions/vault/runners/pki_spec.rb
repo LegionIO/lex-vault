@@ -58,19 +58,19 @@ RSpec.describe Legion::Extensions::Vault::Runners::Pki do
   describe '#ca_chain' do
     it 'returns the CA chain' do
       stubs.get('/v1/pki/ca_chain') do
-        [200, { 'Content-Type' => 'application/json' }, '-----BEGIN CERTIFICATE-----']
+        [200, { 'Content-Type' => 'text/plain' }, '-----BEGIN CERTIFICATE-----']
       end
       result = client.ca_chain
       expect(result[:result]).not_to be_nil
     end
   end
 
-  describe '#list_roles' do
+  describe '#list_pki_roles' do
     it 'lists PKI roles' do
       stubs.get('/v1/pki/roles') do
         [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'keys' => ['web-server'] } }]
       end
-      result = client.list_roles
+      result = client.list_pki_roles
       expect(result[:result]['data']['keys']).to include('web-server')
     end
   end

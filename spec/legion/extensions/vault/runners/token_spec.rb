@@ -51,20 +51,20 @@ RSpec.describe Legion::Extensions::Vault::Runners::Token do
     end
   end
 
-  describe '#list_roles' do
+  describe '#list_token_roles' do
     it 'lists token roles' do
       stubs.get('/v1/auth/token/roles') do
         [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'keys' => ['my-role'] } }]
       end
-      result = client.list_roles
+      result = client.list_token_roles
       expect(result[:result]['data']['keys']).to include('my-role')
     end
   end
 
-  describe '#delete_role' do
+  describe '#delete_token_role' do
     it 'deletes a token role' do
       stubs.delete('/v1/auth/token/roles/my-role') { [204, {}, ''] }
-      result = client.delete_role(role_name: 'my-role')
+      result = client.delete_token_role(role_name: 'my-role')
       expect(result[:result]).to be true
     end
   end

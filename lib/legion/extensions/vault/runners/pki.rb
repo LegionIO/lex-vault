@@ -41,17 +41,17 @@ module Legion
             { result: response.body }
           end
 
-          def list_roles(mount: 'pki', **)
+          def list_pki_roles(mount: 'pki', **)
             response = connection(**).get("/v1/#{mount}/roles", { list: true })
             { result: response.body }
           end
 
-          def get_role(role_name:, mount: 'pki', **)
+          def get_pki_role(role_name:, mount: 'pki', **)
             response = connection(**).get("/v1/#{mount}/roles/#{role_name}")
             { result: response.body }
           end
 
-          def create_role(role_name:, mount: 'pki', allowed_domains: nil, allow_subdomains: nil, max_ttl: nil, **)
+          def create_pki_role(role_name:, mount: 'pki', allowed_domains: nil, allow_subdomains: nil, max_ttl: nil, **)
             body = { allowed_domains: allowed_domains, allow_subdomains: allow_subdomains,
                      max_ttl: max_ttl }.compact
             response = connection(**).post("/v1/#{mount}/roles/#{role_name}", body)
