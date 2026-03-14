@@ -55,8 +55,9 @@ client.issue(role: 'web-server', common_name: 'app.example.com')
 ## Requirements
 
 - Ruby >= 3.4
-- [LegionIO](https://github.com/LegionIO/LegionIO) framework
+- [LegionIO](https://github.com/LegionIO/LegionIO) framework (optional for standalone client usage)
 - HashiCorp Vault server (any version with HTTP API v1)
+- `faraday` >= 2.0
 
 ## License
 
