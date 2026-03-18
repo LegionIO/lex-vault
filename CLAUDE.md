@@ -10,6 +10,7 @@ Legion Extension that connects LegionIO to HashiCorp Vault. Provides runners for
 
 **GitHub**: https://github.com/LegionIO/lex-vault
 **License**: MIT
+**Version**: 0.1.0
 
 ## Architecture
 
@@ -38,6 +39,8 @@ Legion::Extensions::Vault
 The client accepts `address` (matching Vault's `VAULT_ADDR`), `token`, and optional `namespace` (Enterprise). All API calls go through `/v1/` prefix.
 
 ## Testing
+
+44 specs across 8 spec files.
 
 ```bash
 bundle install
