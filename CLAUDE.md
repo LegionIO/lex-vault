@@ -36,7 +36,7 @@ Legion::Extensions::Vault
 
 ## Connection
 
-The client accepts `address` (matching Vault's `VAULT_ADDR`), `token`, and optional `namespace` (Enterprise). All API calls go through `/v1/` prefix.
+The client accepts `address` (matching Vault's `VAULT_ADDR`, default `http://127.0.0.1:8200`), `token`, and optional `namespace` (Enterprise). All API calls go through `/v1/` prefix.
 
 ## Testing
 
