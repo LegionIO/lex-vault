@@ -19,6 +19,7 @@ module Legion
         include Runners::Transit
         include Runners::Pki
         include Runners::Leases
+        include Runners::Namespaces
 
         attr_reader :opts
 

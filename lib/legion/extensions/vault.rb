@@ -8,6 +8,7 @@ require 'legion/extensions/vault/runners/token'
 require 'legion/extensions/vault/runners/transit'
 require 'legion/extensions/vault/runners/pki'
 require 'legion/extensions/vault/runners/leases'
+require 'legion/extensions/vault/runners/namespaces'
 require 'legion/extensions/vault/client'
 
 module Legion
