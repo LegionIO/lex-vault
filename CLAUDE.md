@@ -6,11 +6,11 @@
 
 ## Purpose
 
-Legion Extension that connects LegionIO to HashiCorp Vault. Provides runners for system operations, KV v2 secrets, token auth, Transit encryption, PKI certificates, and lease management.
+Legion Extension that connects LegionIO to HashiCorp Vault. Provides runners for system operations, KV v2 secrets, token auth, Transit encryption, PKI certificates, lease management, and Enterprise namespace management.
 
 **GitHub**: https://github.com/LegionIO/lex-vault
 **License**: MIT
-**Version**: 0.1.1
+**Version**: 0.1.2
 
 ## Architecture
 
@@ -22,7 +22,8 @@ Legion::Extensions::Vault
 │   ├── Token             # Token auth: create/lookup/renew/revoke + roles
 │   ├── Transit           # Encrypt/decrypt/sign/verify/hash/random
 │   ├── Pki               # Issue/sign/revoke certs, CA chain, roles
-│   └── Leases            # Lookup/renew/revoke leases
+│   ├── Leases            # Lookup/renew/revoke leases
+│   └── Namespaces        # Vault Enterprise namespace management (list, get, create, delete)
 ├── Helpers/
 │   └── Client            # Faraday connection builder (X-Vault-Token + namespace)
 └── Client                # Standalone client class (includes all runners)
@@ -40,7 +41,7 @@ The client accepts `address` (matching Vault's `VAULT_ADDR`, default `http://127
 
 ## Testing
 
-44 specs across 8 spec files.
+44 specs across 9 spec files.
 
 ```bash
 bundle install

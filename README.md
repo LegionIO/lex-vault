@@ -28,6 +28,9 @@ gem install lex-vault
 ### Leases
 `lookup_lease`, `renew_lease`, `revoke_lease`, `list_leases`
 
+### Namespaces (Vault Enterprise)
+`list_namespaces`, `get_namespace`, `create_namespace`, `delete_namespace`
+
 ## Standalone Usage
 
 ```ruby
