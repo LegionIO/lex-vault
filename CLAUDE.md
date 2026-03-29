@@ -10,7 +10,7 @@ Legion Extension that connects LegionIO to HashiCorp Vault. Provides runners for
 
 **GitHub**: https://github.com/LegionIO/lex-vault
 **License**: MIT
-**Version**: 0.1.2
+**Version**: 0.1.3
 
 ## Architecture
 
@@ -26,6 +26,7 @@ Legion::Extensions::Vault
 │   └── Namespaces        # Vault Enterprise namespace management (list, get, create, delete)
 ├── Helpers/
 │   └── Client            # Faraday connection builder (X-Vault-Token + namespace)
+├── Transport/             # AMQP transport scaffolding (exchanges/queues/messages — populated on demand)
 └── Client                # Standalone client class (includes all runners)
 ```
 
