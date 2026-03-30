@@ -14,7 +14,7 @@ require 'legion/extensions/vault/client'
 module Legion
   module Extensions
     module Vault
-      extend Legion::Extensions::Core if Legion::Extensions.const_defined? :Core
+      extend Legion::Extensions::Core if Legion::Extensions.const_defined? :Core, false
     end
   end
 end
