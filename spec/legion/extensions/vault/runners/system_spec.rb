@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'faraday'
+
 RSpec.describe Legion::Extensions::Vault::Runners::System do
   let(:client) { Legion::Extensions::Vault::Client.new(token: 'test-token') }
   let(:stubs) { Faraday::Adapter::Test::Stubs.new }
@@ -11,79 +13,121 @@ RSpec.describe Legion::Extensions::Vault::Runners::System do
     end
   end
 
-  before { allow(client).to receive(:connection).and_return(test_connection) }
+  # connection: the standard pipe for ordinary methods. build_connection:
+  # health/seal_status bypass the Raiser-registered pipe by design (their
+  # non-200 statuses are data); the Raiser-bypass mechanism itself is covered
+  # in helpers/client_spec.
+  before do
+    allow(client).to receive(:connection).and_return(test_connection)
+    allow(client).to receive(:build_connection).and_return(test_connection)
+  end
 
   describe '#health' do
-    it 'returns health status' do
-      stubs.get('/v1/sys/health') { [200, { 'Content-Type' => 'application/json' }, { 'initialized' => true, 'sealed' => false }] }
-      result = client.health
-      expect(result[:result]['initialized']).to be true
+    it 'returns the health body without raising on non-200 statuses' do
+      stubs.get('/v1/sys/health') do
+        [503, { 'Content-Type' => 'application/json' },
+         { 'initialized' => true, 'sealed' => true, 'standby' => false }.to_json]
+      end
+
+      expect(client.health).to eq(initialized: true, sealed: true, standby: false)
     end
   end
 
   describe '#seal_status' do
-    it 'returns seal status' do
-      stubs.get('/v1/sys/seal-status') { [200, { 'Content-Type' => 'application/json' }, { 'sealed' => false, 't' => 3 }] }
-      result = client.seal_status
-      expect(result[:result]['sealed']).to be false
+    it 'returns the normalized seal status' do
+      stubs.get('/v1/sys/seal-status') do
+        [200, { 'Content-Type' => 'application/json' }, { 'sealed' => false, 't' => 3 }.to_json]
+      end
+
+      expect(client.seal_status).to eq(sealed: false, t: 3)
     end
   end
 
   describe '#unseal' do
-    it 'submits an unseal key' do
-      stubs.put('/v1/sys/unseal') { [200, { 'Content-Type' => 'application/json' }, { 'sealed' => false, 'progress' => 0 }] }
-      result = client.unseal(key: 'abc123')
-      expect(result[:result]['sealed']).to be false
+    it 'returns the normalized unseal progress' do
+      stubs.put('/v1/sys/unseal') do
+        [200, { 'Content-Type' => 'application/json' }, { 'sealed' => false, 'progress' => 0 }.to_json]
+      end
+
+      expect(client.unseal(key: 'abc123')).to eq(sealed: false, progress: 0)
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.unseal(key: 'x', read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 
   describe '#list_mounts' do
-    it 'returns mounted secrets engines' do
-      stubs.get('/v1/sys/mounts') { [200, { 'Content-Type' => 'application/json' }, { 'secret/' => { 'type' => 'kv' } }] }
-      result = client.list_mounts
-      expect(result[:result]).to have_key('secret/')
+    it 'returns the normalized mount table' do
+      stubs.get('/v1/sys/mounts') do
+        [200, { 'Content-Type' => 'application/json' }, { 'secret/' => { 'type' => 'kv' } }.to_json]
+      end
+
+      expect(client.list_mounts).to have_key(:'secret/')
     end
   end
 
   describe '#mount' do
-    it 'mounts a secrets engine' do
+    it 'returns the status for empty-body responses' do
       stubs.post('/v1/sys/mounts/pki') { [204, {}, ''] }
-      result = client.mount(path: 'pki', type: 'pki')
-      expect(result[:result]).to be true
+
+      expect(client.mount(path: 'pki', type: 'pki')).to eq(status: 204)
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.mount(path: 'x', type: 'kv', read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 
   describe '#unmount' do
-    it 'unmounts a secrets engine' do
+    it 'returns the status for empty-body responses' do
       stubs.delete('/v1/sys/mounts/pki') { [204, {}, ''] }
-      result = client.unmount(path: 'pki')
-      expect(result[:result]).to be true
+
+      expect(client.unmount(path: 'pki')).to eq(status: 204)
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.unmount(path: 'x', read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 
   describe '#list_policies' do
-    it 'returns policies' do
+    it 'returns the normalized policy list' do
       stubs.get('/v1/sys/policies/acl') do
-        [200, { 'Content-Type' => 'application/json' }, { 'keys' => %w[default root] }]
+        [200, { 'Content-Type' => 'application/json' }, { 'keys' => %w[default root] }.to_json]
       end
-      result = client.list_policies
-      expect(result[:result]['keys']).to include('default')
+
+      expect(client.list_policies).to eq(keys: %w[default root])
     end
   end
 
   describe '#put_policy' do
-    it 'creates a policy' do
+    it 'returns the status for empty-body responses' do
       stubs.put('/v1/sys/policies/acl/my-policy') { [204, {}, ''] }
-      result = client.put_policy(name: 'my-policy', policy: 'path "secret/*" { capabilities = ["read"] }')
-      expect(result[:result]).to be true
+
+      expect(client.put_policy(name: 'my-policy', policy: 'path "secret/*" { capabilities = ["read"] }'))
+        .to eq(status: 204)
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.put_policy(name: 'x', policy: 'p', read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 
   describe '#delete_policy' do
-    it 'deletes a policy' do
+    it 'returns the status for empty-body responses' do
       stubs.delete('/v1/sys/policies/acl/my-policy') { [204, {}, ''] }
-      result = client.delete_policy(name: 'my-policy')
-      expect(result[:result]).to be true
+
+      expect(client.delete_policy(name: 'my-policy')).to eq(status: 204)
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.delete_policy(name: 'x', read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 end

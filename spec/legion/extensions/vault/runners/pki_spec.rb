@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'faraday'
+
 RSpec.describe Legion::Extensions::Vault::Runners::Pki do
   let(:client) { Legion::Extensions::Vault::Client.new(token: 'test-token') }
   let(:stubs) { Faraday::Adapter::Test::Stubs.new }
@@ -14,64 +16,81 @@ RSpec.describe Legion::Extensions::Vault::Runners::Pki do
   before { allow(client).to receive(:connection).and_return(test_connection) }
 
   describe '#issue' do
-    it 'issues a certificate' do
+    it 'returns the normalized certificate' do
       stubs.post('/v1/pki/issue/web-server') do
         [200, { 'Content-Type' => 'application/json' },
-         { 'data' => { 'certificate' => '-----BEGIN CERTIFICATE-----', 'serial_number' => '01:02:03' } }]
+         { 'data' => { 'certificate' => '-----BEGIN CERTIFICATE-----', 'serial_number' => '01:02:03' } }.to_json]
       end
-      result = client.issue(role: 'web-server', common_name: 'example.com')
-      expect(result[:result]['data']['certificate']).to start_with('-----BEGIN')
+
+      expect(client.issue(role: 'web-server', common_name: 'example.com'))
+        .to eq(data: { certificate: '-----BEGIN CERTIFICATE-----', serial_number: '01:02:03' })
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.issue(role: 'x', common_name: 'y', read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 
   describe '#sign_csr' do
-    it 'signs a CSR' do
+    it 'returns the normalized certificate' do
       stubs.post('/v1/pki/sign/web-server') do
         [200, { 'Content-Type' => 'application/json' },
-         { 'data' => { 'certificate' => '-----BEGIN CERTIFICATE-----' } }]
+         { 'data' => { 'certificate' => '-----BEGIN CERTIFICATE-----' } }.to_json]
       end
-      result = client.sign_csr(role: 'web-server', csr: '-----BEGIN CERTIFICATE REQUEST-----', common_name: 'example.com')
-      expect(result[:result]['data']['certificate']).to start_with('-----BEGIN')
+
+      expect(client.sign_csr(role: 'web-server', csr: '-----BEGIN CERTIFICATE REQUEST-----', common_name: 'example.com'))
+        .to eq(data: { certificate: '-----BEGIN CERTIFICATE-----' })
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.sign_csr(role: 'x', csr: 'c', common_name: 'y', read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 
   describe '#revoke' do
-    it 'revokes a certificate' do
+    it 'returns the normalized revocation' do
       stubs.post('/v1/pki/revoke') do
-        [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'revocation_time' => 1_234_567_890 } }]
+        [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'revocation_time' => 1_234_567_890 } }.to_json]
       end
-      result = client.revoke(serial_number: '01:02:03')
-      expect(result[:result]['data']['revocation_time']).to be_a(Integer)
+
+      expect(client.revoke(serial_number: '01:02:03')).to eq(data: { revocation_time: 1_234_567_890 })
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.revoke(serial_number: 'x', read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 
   describe '#list_certs' do
-    it 'lists certificate serial numbers' do
+    it 'returns the normalized serial list' do
       stubs.get('/v1/pki/certs') do
-        [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'keys' => ['01:02:03'] } }]
+        [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'keys' => ['01:02:03'] } }.to_json]
       end
-      result = client.list_certs
-      expect(result[:result]['data']['keys']).to include('01:02:03')
+
+      expect(client.list_certs).to eq(data: { keys: ['01:02:03'] })
     end
   end
 
   describe '#ca_chain' do
-    it 'returns the CA chain' do
+    it 'wraps the plain-text PEM body in a Hash' do
       stubs.get('/v1/pki/ca_chain') do
         [200, { 'Content-Type' => 'text/plain' }, '-----BEGIN CERTIFICATE-----']
       end
-      result = client.ca_chain
-      expect(result[:result]).not_to be_nil
+
+      expect(client.ca_chain).to eq(data: '-----BEGIN CERTIFICATE-----')
     end
   end
 
   describe '#list_pki_roles' do
-    it 'lists PKI roles' do
+    it 'returns the normalized role list' do
       stubs.get('/v1/pki/roles') do
-        [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'keys' => ['web-server'] } }]
+        [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'keys' => ['web-server'] } }.to_json]
       end
-      result = client.list_pki_roles
-      expect(result[:result]['data']['keys']).to include('web-server')
+
+      expect(client.list_pki_roles).to eq(data: { keys: ['web-server'] })
     end
   end
 end

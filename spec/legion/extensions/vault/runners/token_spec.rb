@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'faraday'
+
 RSpec.describe Legion::Extensions::Vault::Runners::Token do
   let(:client) { Legion::Extensions::Vault::Client.new(token: 'test-token') }
   let(:stubs) { Faraday::Adapter::Test::Stubs.new }
@@ -14,58 +16,79 @@ RSpec.describe Legion::Extensions::Vault::Runners::Token do
   before { allow(client).to receive(:connection).and_return(test_connection) }
 
   describe '#create_token' do
-    it 'creates a new token' do
+    it 'returns the normalized auth envelope' do
       stubs.post('/v1/auth/token/create') do
-        [200, { 'Content-Type' => 'application/json' }, { 'auth' => { 'client_token' => 'new-token' } }]
+        [200, { 'Content-Type' => 'application/json' }, { 'auth' => { 'client_token' => 'new-token' } }.to_json]
       end
-      result = client.create_token(policies: ['default'], ttl: '1h')
-      expect(result[:result]['auth']['client_token']).to eq('new-token')
+
+      expect(client.create_token(policies: ['default'], ttl: '1h'))
+        .to eq(auth: { client_token: 'new-token' })
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.create_token(policies: ['default'], read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 
   describe '#lookup_self' do
-    it 'returns info about the current token' do
+    it 'returns the normalized token data' do
       stubs.get('/v1/auth/token/lookup-self') do
-        [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'display_name' => 'root' } }]
+        [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'display_name' => 'root' } }.to_json]
       end
-      result = client.lookup_self
-      expect(result[:result]['data']['display_name']).to eq('root')
+
+      expect(client.lookup_self).to eq(data: { display_name: 'root' })
     end
   end
 
   describe '#renew_self' do
-    it 'renews the current token' do
+    it 'returns the normalized auth envelope' do
       stubs.post('/v1/auth/token/renew-self') do
-        [200, { 'Content-Type' => 'application/json' }, { 'auth' => { 'client_token' => 'test-token' } }]
+        [200, { 'Content-Type' => 'application/json' }, { 'auth' => { 'client_token' => 'test-token' } }.to_json]
       end
-      result = client.renew_self
-      expect(result[:result]['auth']['client_token']).to eq('test-token')
+
+      expect(client.renew_self).to eq(auth: { client_token: 'test-token' })
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.renew_self(read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 
   describe '#revoke_token' do
-    it 'revokes a specified token' do
+    it 'returns the status for empty-body responses' do
       stubs.post('/v1/auth/token/revoke') { [204, {}, ''] }
-      result = client.revoke_token(token_to_revoke: 'old-token')
-      expect(result[:result]).to be true
+
+      expect(client.revoke_token(token_to_revoke: 'old-token')).to eq(status: 204)
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.revoke_token(token_to_revoke: 'x', read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 
   describe '#list_token_roles' do
-    it 'lists token roles' do
+    it 'returns the normalized role list' do
       stubs.get('/v1/auth/token/roles') do
-        [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'keys' => ['my-role'] } }]
+        [200, { 'Content-Type' => 'application/json' }, { 'data' => { 'keys' => ['my-role'] } }.to_json]
       end
-      result = client.list_token_roles
-      expect(result[:result]['data']['keys']).to include('my-role')
+
+      expect(client.list_token_roles).to eq(data: { keys: ['my-role'] })
     end
   end
 
   describe '#delete_token_role' do
-    it 'deletes a token role' do
+    it 'returns the status for empty-body responses' do
       stubs.delete('/v1/auth/token/roles/my-role') { [204, {}, ''] }
-      result = client.delete_token_role(role_name: 'my-role')
-      expect(result[:result]).to be true
+
+      expect(client.delete_token_role(role_name: 'my-role')).to eq(status: 204)
+    end
+
+    it 'raises ReadOnlyError in read_only mode' do
+      expect { client.delete_token_role(role_name: 'x', read_only: true) }
+        .to raise_error(Legion::Extensions::Vault::Errors::ReadOnlyError)
     end
   end
 end
