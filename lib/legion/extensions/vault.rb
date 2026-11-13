@@ -21,6 +21,14 @@ module Legion
     module Vault
       extend Legion::Extensions::Core if Legion::Extensions.const_defined? :Core, false
 
+      # No async/AMQP dispatch surface. The task engine does not promise
+      # exactly-once execution, and queuing secrets-engine side effects
+      # (unseal, put_policy, revoke, writes) behind redelivery is a mismatch.
+      # Vault calls are fast synchronous HTTP; use in-process/Client/MCP paths.
+      def self.remote_invocable?
+        false
+      end
+
       def self.default_settings
         {
           address:   'http://127.0.0.1:8200',

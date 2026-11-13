@@ -9,6 +9,10 @@ RSpec.describe Legion::Extensions::Vault do
     expect(Legion::Extensions::Vault::Client).to be_a(Class)
   end
 
+  it 'is not remote invocable (no AMQP/meta-actor dispatch surface)' do
+    expect(described_class.remote_invocable?).to be(false)
+  end
+
   describe '.default_settings' do
     subject(:settings) { described_class.default_settings }
 

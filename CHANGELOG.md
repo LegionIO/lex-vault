@@ -11,6 +11,7 @@
 - Ephemeral auth: `auth: { method:, ... }` opts mint a token for the call and toss it — no token state in the gem
 
 ### Changed (breaking)
+- `remote_invocable?` is now `false` for both `Vault` and `Vault::Auth` — no meta-actors or AMQP dispatch surface. The task engine does not promise exactly-once execution; queuing secrets-engine side effects behind redelivery is a mismatch. Supported paths: in-process module calls, the standalone `Client`, MCP (synchronous). Per-runner re-enablement via `runners.<name>.remote_invocable` settings remains available.
 - Runner return shapes: JSON bodies are returned directly with symbol keys (no `{ result: }` double-wrap); empty-body responses return `{ status: <int> }`; `Pki#ca_chain` (text PEM) wraps as `{ data: <body> }`
 - Non-2xx Vault responses now raise `APIError` instead of returning the error body as data (`health`/`seal_status` exempt — their non-200 statuses are data)
 - Unresolvable credentials raise `AuthUnresolved` instead of sending unauthenticated requests

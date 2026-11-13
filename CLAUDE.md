@@ -20,7 +20,7 @@ Legion::Extensions::Vault
 │   ├── Namespaces        # Vault Enterprise namespace CRUD
 │   ├── Consul            # dynamic secrets: config/access, role CRUD, generate_credential
 │   └── Nomad             # dynamic secrets: config access/lease, role CRUD, POST /cred/{accessor}
-├── Auth/                 # nested sub-extension (own settings tree, AMQP prefix, meta-actors)
+├── Auth/                 # nested sub-extension (own settings tree; not remotely invocable)
 │   ├── Helpers/Login     # vault_login — shared mint (never attaches a token)
 │   └── Runners/
 │       ├── Token         # validate (lookup) — not a mint
@@ -37,6 +37,7 @@ Legion::Extensions::Vault
 - **Returns.** JSON-body responses return the normalized body directly (symbol keys via `vault_normalize`); empty-body (204) responses return `{ status: <int> }`; the plain-text PEM endpoint (`Pki#ca_chain`) wraps as `{ data: <body> }`. No `{ result: }` double-wrap.
 - **health/seal-status bypass the Raiser** (`raise_errors: false`) — their non-200 statuses (sealed, standby, uninit) are data.
 - **Client is core engines only.** The dynamic engines (Consul/Nomad) and auth runners are NOT mixed into `Client` — they share generic method names (`create_role`, `login`, ...) that would shadow each other. Standalone auth: `Client.new(auth: { method: :user_pass, username:, password: })`.
+- **Not remotely invocable.** Both `Vault` and `Vault::Auth` declare `remote_invocable? → false`: no meta-actors, no AMQP dispatch surface. Rationale: the task engine does not promise exactly-once execution; queuing secrets-engine side effects behind redelivery is a mismatch, and Vault calls are fast synchronous HTTP. In-process module calls, the standalone `Client`, and MCP (synchronous) are the supported paths. `transport_required?` in `Core` is a dead flag (defined, never consumed) — do not use it.
 - **Consul's business token is `consul_token:`** — never the pipe's `token:` (that's the Vault credential).
 - **Nomad corrections vs. the original internal implementation:** `read_role` is GET `/role/{name}` (was POST); `generate_credential` is POST `/cred/{accessor}` (was GET of the role path — it never minted).
 - Depends on `faraday`. All API calls go through `/v1/`.

@@ -71,18 +71,26 @@ Non-2xx Vault responses raise `Legion::Extensions::Vault::Errors::APIError`
 
 ## Framework Usage
 
+lex-vault is **not remotely invocable** — no AMQP/meta-actor dispatch surface. The
+task engine does not promise exactly-once execution, and queuing secrets-engine side
+effects (unseal, policy writes, revokes) behind redelivery is a mismatch. Call the
+runners in-process:
+
 ```ruby
-# Any task/chain/CLI — credentials from settings or call-time opts
-Legion::Runner.run(
-  runner_class: 'Legion::Extensions::Vault::Runners::Kv',
-  function: 'read_secret',
-  args: { path: 'myapp/config', token: 'hvs.your-token' }
-)
+# Credentials from settings (extensions.vault) or call-time opts
+Legion::Extensions::Vault::Runners::Kv.read_secret(path: 'myapp/config',
+                                                   token: 'hvs.your-token')
 
 # Mint via LDAP for a single call (ephemeral)
-client.read_secret(path: 'myapp/config',
-                   auth: { method: :user_pass, username: 'svc', password: '...' })
+Legion::Extensions::Vault::Runners::Kv.read_secret(path: 'myapp/config',
+                                                   auth: { method: :user_pass,
+                                                           username: 'svc',
+                                                           password: '...' })
 ```
+
+The MCP tool surface is unaffected (synchronous agent calls). Per-runner remote
+invocability can still be re-enabled later via settings
+(`runners.<name>.remote_invocable`) if a use case earns it.
 
 ## Standalone Usage
 

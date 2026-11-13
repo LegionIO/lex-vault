@@ -11,6 +11,13 @@ module Legion
       module Auth
         extend Legion::Extensions::Core if Legion::Extensions.const_defined? :Core, false
 
+        # Declared independently of the root Vault extension: singleton
+        # methods do not cross nested module boundaries. Same rationale —
+        # no AMQP/meta-actor dispatch surface for the auth runners.
+        def self.remote_invocable?
+          false
+        end
+
         def self.default_settings
           {
             runners: {

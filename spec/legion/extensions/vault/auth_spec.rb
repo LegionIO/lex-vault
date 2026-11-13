@@ -5,6 +5,10 @@ RSpec.describe Legion::Extensions::Vault::Auth do
     expect(described_class).to be_a(Module)
   end
 
+  it 'is not remote invocable (no AMQP/meta-actor dispatch surface)' do
+    expect(described_class.remote_invocable?).to be(false)
+  end
+
   describe '.default_settings' do
     it 'declares a runner desc for each auth method' do
       expect(described_class.default_settings[:runners]).to eq(
