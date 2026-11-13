@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'legion/extensions/vault/errors'
 require 'legion/extensions/vault/helpers/client'
 
 module Legion
@@ -10,24 +11,24 @@ module Legion
           include Legion::Extensions::Vault::Helpers::Client
 
           def lookup_lease(lease_id:, **)
-            response = connection(**).put('/v1/sys/leases/lookup', { lease_id: lease_id })
-            { result: response.body }
+            vault_normalize(connection(**).put('/v1/sys/leases/lookup', { lease_id: lease_id }).body)
           end
 
-          def renew_lease(lease_id:, increment: nil, **)
+          def renew_lease(lease_id:, increment: nil, read_only: false, **)
+            raise Legion::Extensions::Vault::Errors::ReadOnlyError, 'write operations disabled (read_only mode)' if read_only
+
             body = { lease_id: lease_id, increment: increment }.compact
-            response = connection(**).put('/v1/sys/leases/renew', body)
-            { result: response.body }
+            vault_normalize(connection(**).put('/v1/sys/leases/renew', body).body)
           end
 
-          def revoke_lease(lease_id:, **)
-            response = connection(**).put('/v1/sys/leases/revoke', { lease_id: lease_id })
-            { result: response.status == 204 }
+          def revoke_lease(lease_id:, read_only: false, **)
+            raise Legion::Extensions::Vault::Errors::ReadOnlyError, 'write operations disabled (read_only mode)' if read_only
+
+            { status: connection(**).put('/v1/sys/leases/revoke', { lease_id: lease_id }).status }
           end
 
           def list_leases(prefix:, **)
-            response = connection(**).get("/v1/sys/leases/lookup/#{prefix}", { list: true })
-            { result: response.body }
+            vault_normalize(connection(**).get("/v1/sys/leases/lookup/#{prefix}", { list: true }).body)
           end
 
           include Legion::Extensions::Helpers::Lex if Legion::Extensions.const_defined?(:Helpers, false) &&

@@ -21,4 +21,19 @@ RSpec.describe Legion::Extensions::Vault::Client do
   it 'returns a Faraday connection' do
     expect(client.connection).to be_a(Faraday::Connection)
   end
+
+  it 'builds the connection from its own opts, not settings' do
+    custom = described_class.new(token: 'tok', address: 'https://vault.example.com')
+
+    expect(custom.connection.url_prefix.to_s).to eq('https://vault.example.com/')
+  end
+
+  it 'sets the token header from its opts' do
+    expect(subject.connection.headers['X-Vault-Token']).to eq('test-token')
+  end
+
+  it 'raises AuthUnresolved when no credentials are configured' do
+    expect { described_class.new.connection }
+      .to raise_error(Legion::Extensions::Vault::Errors::AuthUnresolved)
+  end
 end
