@@ -12,7 +12,7 @@ module Legion
 
           # The Consul server's own token is a business kwarg (consul_token:) —
           # it is not the Vault credential pipe's token.
-          # rubocop:disable Metrics/ParameterLists -- the Vault consul config/access schema
+          # rubocop:disable-next Metrics/ParameterLists -- the Vault consul config/access schema
           def configure(address:, consul_token:, scheme: 'https', ca_cert: nil, client_cert: nil, client_key: nil,
                         mount: 'consul', read_only: false, **)
             raise Legion::Extensions::Vault::Errors::ReadOnlyError, 'write operations disabled (read_only mode)' if read_only
@@ -21,9 +21,8 @@ module Legion
                      ca_cert: ca_cert, client_cert: client_cert, client_key: client_key }.compact
             { status: connection(**).post("/v1/#{mount}/config/access", body).status }
           end
-          # rubocop:enable Metrics/ParameterLists
 
-          # rubocop:disable Metrics/ParameterLists -- the Vault consul role schema
+          # rubocop:disable-next Metrics/ParameterLists -- the Vault consul role schema
           def create_role(name:, partition: 'default', node_identities: nil, consul_namespace: nil,
                           consul_roles: nil, service_identities: nil, consul_policies: nil, local: true,
                           ttl: '31d', max_ttl: '1y', mount: 'consul', read_only: false, **)
@@ -34,7 +33,6 @@ module Legion
                      consul_policies: consul_policies, local: local, ttl: ttl, max_ttl: max_ttl }.compact
             { status: connection(**).post("/v1/#{mount}/roles/#{name}", body).status }
           end
-          # rubocop:enable Metrics/ParameterLists
 
           def read_role(name:, mount: 'consul', **)
             vault_normalize(connection(**).get("/v1/#{mount}/roles/#{name}").body)
