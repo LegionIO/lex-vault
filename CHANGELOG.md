@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.2.0] - 2026-11-13
+
+### Added
+- `Vault::Auth` nested sub-extension: `Runners::Token#validate`, `Runners::UserPass#login` (LDAP), `Runners::AppRole#login` — auth-method token minting as first-class framework runners (own settings tree, AMQP prefix, meta-actors, MCP tools)
+- Credential resolver (`Helpers::Auth#auth_resolve`): `token:` / `auth:` / settings precedence, single resolution point for every runner
+- `Runners::Consul` and `Runners::Nomad` dynamic secrets engines
+- `Errors`: `AuthUnresolved`, `APIError` (numeric code + Vault message, via the `Raiser` Faraday middleware), `ReadOnlyError`
+- `read_only: true` guard on all write/mutating methods
+- Ephemeral auth: `auth: { method:, ... }` opts mint a token for the call and toss it — no token state in the gem
+
+### Changed (breaking)
+- `remote_invocable?` is now `false` for both `Vault` and `Vault::Auth` — no meta-actors or AMQP dispatch surface. The task engine does not promise exactly-once execution; queuing secrets-engine side effects behind redelivery is a mismatch. Supported paths: in-process module calls, the standalone `Client`, MCP (synchronous). Per-runner re-enablement via `runners.<name>.remote_invocable` settings remains available.
+- Runner return shapes: JSON bodies are returned directly with symbol keys (no `{ result: }` double-wrap); empty-body responses return `{ status: <int> }`; `Pki#ca_chain` (text PEM) wraps as `{ data: <body> }`
+- Non-2xx Vault responses now raise `APIError` instead of returning the error body as data (`health`/`seal_status` exempt — their non-200 statuses are data)
+- Unresolvable credentials raise `AuthUnresolved` instead of sending unauthenticated requests
+- `KV#patch_secret` serializes the merge-patch body explicitly (Faraday's json middleware skips serialization when a non-JSON Content-Type is pre-set)
+- Standalone `Client` seeds the resolver from constructor opts (`default_credentials` override); no longer overrides `connection`
+- Nomad `read_role` corrected to GET `/role/{name}`; `generate_credential` corrected to POST `/cred/{accessor}` (the previous implementation never actually minted credentials)
+
+### Notes
+- Credentials are not yet redacted from logs/exception context — time-boxed to the end-to-end validation phase, tracked as the next follow-up
+- The standalone `Client` does not mix in the dynamic engines or auth runners (shared method names would shadow); standalone auth uses the `auth:` descriptor
+
 ## [0.1.4] - 2026-03-30
 
 ### Changed

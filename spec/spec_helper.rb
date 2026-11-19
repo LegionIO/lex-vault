@@ -23,6 +23,13 @@ module Legion
         include Legion::Data::Helper
         include Legion::JSON::Helper
         include Legion::Transport::Helper
+
+        # Mirror of the framework's dispatch mechanism: runner modules are
+        # invoked at module level (runner_class.send(function, **args)), which
+        # requires the module to extend itself.
+        def self.included(base)
+          base.extend base if base.instance_of?(Module)
+        end
       end
     end
   end
@@ -34,4 +41,15 @@ RSpec.configure do |config|
   config.example_status_persistence_file_path = '.rspec_status'
   config.disable_monkey_patching!
   config.expect_with(:rspec) { |c| c.syntax = :expect }
+
+  config.before do
+    @original_extensions = Legion::Settings.loader.settings[:extensions]
+    Legion::Settings.loader.settings[:extensions] = {
+      vault: Legion::Extensions::Vault.default_settings
+    }
+  end
+
+  config.after do
+    Legion::Settings.loader.settings[:extensions] = @original_extensions
+  end
 end

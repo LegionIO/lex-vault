@@ -1,6 +1,6 @@
 # lex-vault
 
-HashiCorp Vault integration for [LegionIO](https://github.com/LegionIO/LegionIO). Provides runners for interacting with the Vault HTTP API covering system operations, KV v2 secrets, token auth, Transit encryption, PKI certificates, and lease management.
+HashiCorp Vault integration for [LegionIO](https://github.com/LegionIO/LegionIO). Provides runners for the Vault HTTP API: system operations, KV v2 secrets, token auth management, Transit encryption, PKI certificates, lease management, dynamic secrets engines (Consul, Nomad), Enterprise namespaces, and auth-method token minting (LDAP, AppRole).
 
 ## Installation
 
@@ -8,15 +8,37 @@ HashiCorp Vault integration for [LegionIO](https://github.com/LegionIO/LegionIO)
 gem install lex-vault
 ```
 
+## Credentials
+
+Every runner method accepts the same optional credential opts (they flow through the
+method's trailing `**` and are resolved in one place):
+
+| Opt | Meaning |
+|-----|---------|
+| `token:` | Use this Vault token for the call. |
+| `address:` | Vault base URL (overrides the configured address). |
+| `namespace:` | Enterprise namespace for the call. |
+| `auth:` | `{ method: :user_pass, username:, password: }` or `{ method: :app_role, role_id:, secret_id: }` — mints a token for this call (ephemeral: used once, tossed). |
+
+Precedence: `token:` > `auth:` > configured settings
+(`Legion::Settings[:extensions][:vault]`: `address`, `token`, `namespace`).
+No resolvable credentials raise `Legion::Extensions::Vault::Errors::AuthUnresolved`.
+
+Non-2xx Vault responses raise `Legion::Extensions::Vault::Errors::APIError`
+(carries the numeric `code` and Vault's message). Write methods accept
+`read_only: true`, which raises `ReadOnlyError` instead of executing.
+
 ## Functions
 
 ### System
 `health`, `seal_status`, `seal`, `unseal`, `init`, `list_mounts`, `mount`, `unmount`, `list_auth`, `enable_auth`, `disable_auth`, `list_policies`, `get_policy`, `put_policy`, `delete_policy`
 
+(`health`/`seal_status` return their non-200 statuses as data — sealed/standby/uninitialized are conditions, not errors.)
+
 ### KV (v2 Secrets)
 `read_secret`, `write_secret`, `patch_secret`, `delete_secret`, `delete_versions`, `undelete_versions`, `destroy_versions`, `list_secrets`, `read_metadata`, `write_metadata`, `delete_metadata`
 
-### Token
+### Token (auth engine management)
 `create_token`, `lookup_token`, `lookup_self`, `renew_token`, `renew_self`, `revoke_token`, `revoke_self`, `list_accessors`, `list_token_roles`, `get_token_role`, `create_token_role`, `delete_token_role`
 
 ### Transit
@@ -30,6 +52,45 @@ gem install lex-vault
 
 ### Namespaces (Vault Enterprise)
 `list_namespaces`, `get_namespace`, `create_namespace`, `delete_namespace`
+
+### Consul (dynamic secrets)
+`configure` (the Consul server's own token is `consul_token:`, not the Vault `token:`), `create_role`, `read_role`, `list_roles`, `delete_role`, `generate_credential`
+
+### Nomad (dynamic secrets)
+`create_role`, `read_role`, `list_roles`, `delete_role`, `generate_credential(accessor:)` (POST `/v1/nomad/cred/{accessor}`), `configure_access`, `read_config_access`, `configure_lease`, `read_lease`, `delete_lease`
+
+### Auth (token minting)
+`validate(token:)` — look up a token's properties. `login(username:, password:, mount: 'ldap')` — LDAP. `login(role_id:, secret_id:, mount: 'approle')` — AppRole. All return Vault's standard login envelope (`auth: { client_token:, lease_id:, ... }`).
+
+## Returns
+
+- JSON-body responses: the normalized body, **symbol keys**, no wrapping
+  (`read_secret` → `{ data: { data: {...}, metadata: {...} } }`).
+- Empty-body (204) responses: `{ status: 204 }`.
+- `Pki#ca_chain` (plain-text PEM): `{ data: "-----BEGIN CERTIFICATE-----..." }`.
+
+## Framework Usage
+
+lex-vault is **not remotely invocable** — no AMQP/meta-actor dispatch surface. The
+task engine does not promise exactly-once execution, and queuing secrets-engine side
+effects (unseal, policy writes, revokes) behind redelivery is a mismatch. Call the
+runners in-process:
+
+```ruby
+# Credentials from settings (extensions.vault) or call-time opts
+Legion::Extensions::Vault::Runners::Kv.read_secret(path: 'myapp/config',
+                                                   token: 'hvs.your-token')
+
+# Mint via LDAP for a single call (ephemeral)
+Legion::Extensions::Vault::Runners::Kv.read_secret(path: 'myapp/config',
+                                                   auth: { method: :user_pass,
+                                                           username: 'svc',
+                                                           password: '...' })
+```
+
+The MCP tool surface is unaffected (synchronous agent calls). Per-runner remote
+invocability can still be re-enabled later via settings
+(`runners.<name>.remote_invocable`) if a use case earns it.
 
 ## Standalone Usage
 
@@ -53,7 +114,23 @@ client.encrypt(name: 'my-key', plaintext: Base64.strict_encode64('hello'))
 
 # Issue a PKI certificate
 client.issue(role: 'web-server', common_name: 'app.example.com')
+
+# Or mint via the descriptor instead of holding a token
+client = Legion::Extensions::Vault::Client.new(
+  address: 'https://vault.example.com',
+  auth: { method: :app_role, role_id: 'r.id', secret_id: 's.id' }
+)
 ```
+
+The standalone `Client` covers the core engines. The dynamic engines (Consul/Nomad)
+and auth runners are framework-level units — they share generic method names
+(`create_role`, `login`) that would shadow each other in one class.
+
+## Known limitation (time-boxed)
+
+Credentials are not yet redacted from logs and exception context — they appear in
+plain text. This is intentional during the end-to-end validation phase and is the
+tracked follow-up for the next release.
 
 ## Requirements
 
